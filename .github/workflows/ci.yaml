@@ -1,0 +1,102 @@
+name: CI - Flutter Web + Cypress
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+
+  # 🏗️ BUILD
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      - name: 📦 Instalar dependências
+        run: flutter pub get
+
+      - name: 🔨 Build Web
+        run: flutter build web
+
+      - name: 📤 Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build
+          path: build/web
+
+  # 🧪 TESTES (Flutter unit/widget)
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      - name: 📦 Instalar dependências
+        run: flutter pub get
+
+      - name: 🧪 Rodar testes Flutter
+        run: flutter test
+
+  # 🌐 E2E (Cypress)
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build  # só roda depois do build
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Baixar build
+        uses: actions/download-artifact@v4
+        with:
+          name: flutter-build
+          path: build/web
+
+      - name: 🌍 Servir aplicação
+        run: |
+          npm install -g serve
+          serve -s build/web -l 3000 &
+
+      - name: ⏳ Esperar app subir
+        run: npx wait-on http://localhost:3000
+
+      - name: ⚙️ Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Instalar dependências
+        run: npm ci
+
+      - name: 🔍 Verificar testes Cypress
+        run: |
+          if [ ! -d "cypress/e2e" ] || [ -z "$(ls -A cypress/e2e)" ]; then
+            echo "❌ Nenhum teste encontrado!"
+            exit 1
+          fi
+
+      - name: 🧪 Rodar Cypress
+        run: npx cypress run
+
+      - name: 📂 Upload artefatos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artifacts
+          path: |
+            cypress/videos
+            cypress/screenshots
