@@ -1,9 +1,6 @@
 name: CI - Flutter Web + Cypress
 
-on:
-  pull_request:
-  push:
-    branches: [main]
+on: [push]
 
 jobs:
 
